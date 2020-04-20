@@ -1,7 +1,11 @@
+
+require('dotenv').config()
 const express = require('express')
 const cors = require('cors')
+const Note = require('./models/note')
 
 const app = express()
+
 app.use(express.json())
 app.use(express.static('build'))
 app.use(cors())
@@ -27,23 +31,18 @@ let notes = [
       }
 ]
 
-app.get('/', (req, res) => {
-    res.send('<h1>Hello Cruel World!</h1>')
-})
 
 app.get('/api/notes', (req, res) => {
-    res.json(notes)
+    Note.find({}).then(notes => {
+        res.json(notes.map(note => note.toJSON()))
+    })
 })
 
 app.get('/api/notes/:id', (req, res) => {
-    const id = Number(req.params.id)
-    const note = notes.find(note => note.id === id)
-    if (note)
-        res.json(note)
-    else
-        res.status(404).end()
+    Note.findById(req.params.id).then(note => {
+        res.json(note.toJSON())
+    })
 })
-
 
 app.delete('/api/notes/:id', (req, res) => {
     const id = Number(req.params.id)
@@ -52,32 +51,21 @@ app.delete('/api/notes/:id', (req, res) => {
 })
 
 app.post('/api/notes', (req, res) => {
-    const generateId = () => {
-        const maxId = notes.length > 0
-            ? Math.max(...notes.map(n => n.id))
-            : 0
-        return maxId + 1
-    }
-
     const body = req.body
 
     if (!body.content) {
-        return res.status(400).json({
-            error: 'content missing'
-        })
+        return res.status(400).json({ error: 'content missing' })
     }
     
-    const note = {
+    const note = new Note({
         content: body.content,
         important: body.important || false,
-        date: new Date(),
-        id: generateId()
-    }
+        date: new Date()
+    })
 
-    console.log(note)
-
-    notes = notes.concat(note)
-    res.json(note)
+    note.save().then(savedNote => {
+        res.json(savedNote.toJSON())
+    })
 })
 
 app.put('/api/notes/:id', (req, res) => {
@@ -91,7 +79,7 @@ app.put('/api/notes/:id', (req, res) => {
     res.json(newNote)
 })
 
-const PORT = process.env.PORT || 3001
+const PORT = process.env.PORT
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`)
 })
